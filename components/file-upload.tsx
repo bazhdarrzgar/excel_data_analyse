@@ -5,6 +5,7 @@ import { useDropzone } from "react-dropzone"
 import * as XLSX from "xlsx"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { DataPreview } from "@/components/data-preview"
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle } from "lucide-react"
 import type { FileData } from "@/app/page"
 
