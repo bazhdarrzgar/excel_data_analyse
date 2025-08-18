@@ -78,9 +78,10 @@ export function ComparisonResults({ file1, file2, config, settings, onDataReady 
       const fuse = new Fuse(file2SearchData, {
         keys: ["value"],
         includeScore: true,
-        threshold: 1.0, // Allow all matches, we'll always return the best one
+        threshold: settings?.fuzzyThreshold || 0.6,
         ignoreLocation: true,
-        findAllMatches: false, // Only return the best match
+        findAllMatches: settings?.maxResults > 1,
+        isCaseSensitive: settings?.caseSensitive || false,
       })
 
       await delay(100)
