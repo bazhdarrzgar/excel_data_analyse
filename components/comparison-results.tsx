@@ -101,7 +101,12 @@ export function ComparisonResults({ file1, file2, config, settings, onDataReady 
 
       for (let i = 0; i < file1.data.length; i++) {
         const file1Row = file1.data[i]
-        const file1Value = String(file1Row[config.file1Column] || "").trim()
+        let file1Value = String(file1Row[config.file1Column] || "").trim()
+
+        // Apply whitespace normalization if enabled
+        if (settings?.ignoreWhitespace) {
+          file1Value = file1Value.replace(/\s+/g, ' ').trim()
+        }
 
         if (file1Value === "") {
           file1Only.push(file1Row)
@@ -110,27 +115,39 @@ export function ComparisonResults({ file1, file2, config, settings, onDataReady 
         }
 
         const searchResults = fuse.search(file1Value)
+        const maxResults = settings?.maxResults || 1
 
         if (searchResults.length > 0) {
-          const bestMatch = searchResults[0]
-          const file2Row = bestMatch.item.originalRow
+          // Process up to maxResults matches
+          for (let j = 0; j < Math.min(searchResults.length, maxResults); j++) {
+            const match = searchResults[j]
+            const file2Row = match.item.originalRow
 
-          const matchResult = {
-            file1Row,
-            file2Row,
-            score: 1 - (bestMatch.score || 0),
-            file1Value,
-            file2Value: bestMatch.item.value,
+            const matchResult = {
+              file1Row,
+              file2Row,
+              score: 1 - (match.score || 0),
+              file1Value,
+              file2Value: match.item.value,
+            }
+
+            // Only include matches above threshold
+            if (matchResult.score >= (settings?.fuzzyThreshold || 0.6)) {
+              matches.push(matchResult)
+
+              // Add to preview if we have less than 5 items
+              if (previewResults.length < 5) {
+                previewResults.push(matchResult)
+              }
+
+              usedFile2Indices.add(match.item.index)
+            }
           }
-
-          matches.push(matchResult)
-
-          // Add to preview if we have less than 5 items
-          if (previewResults.length < 5) {
-            previewResults.push(matchResult)
+          
+          // If no matches met threshold, add to file1Only
+          if (searchResults.length > 0 && !searchResults.some(match => (1 - (match.score || 0)) >= (settings?.fuzzyThreshold || 0.6))) {
+            file1Only.push(file1Row)
           }
-
-          usedFile2Indices.add(bestMatch.item.index)
         } else {
           file1Only.push(file1Row)
         }
