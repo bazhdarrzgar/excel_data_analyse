@@ -104,14 +104,17 @@ export function FileUpload({ onFileUpload, fileData }: FileUploadProps) {
                 {fileData.data.length.toLocaleString()} rows • {fileData.headers.length} columns
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onFileUpload(fileData)}
-              className="border-emerald-300 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700 dark:text-emerald-300 font-sans"
-            >
-              Change File
-            </Button>
+            <div className="flex items-center gap-2">
+              <DataPreview fileData={fileData} title="Uploaded File" />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onFileUpload(fileData)}
+                className="border-emerald-300 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700 dark:text-emerald-300 font-sans"
+              >
+                Change File
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
