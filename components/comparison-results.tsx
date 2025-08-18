@@ -38,7 +38,7 @@ interface ComparisonData {
   file2Only: Record<string, any>[]
 }
 
-export function ComparisonResults({ file1, file2, config }: ComparisonResultsProps) {
+export function ComparisonResults({ file1, file2, config, settings, onDataReady }: ComparisonResultsProps) {
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
