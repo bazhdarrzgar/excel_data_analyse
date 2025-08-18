@@ -145,6 +145,15 @@ export default function ExcelComparisonApp() {
                 </CardContent>
               </Card>
             )}
+
+            {/* File History Component */}
+            <FileHistory 
+              onFileReuse={(fileData) => {
+                // This would typically reuse file data, but for security we ask for re-upload
+                console.log('File reuse requested:', fileData.name)
+              }}
+              currentFiles={[file1, file2]}
+            />
           </TabsContent>
 
           <TabsContent value="configure" className="space-y-6">
