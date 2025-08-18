@@ -187,11 +187,18 @@ export function ComparisonResults({ file1, file2, config, settings, onDataReady 
       setProgress(100)
       setCurrentStep("Complete!")
 
-      setComparisonData({
+      const finalData = {
         matches,
         file1Only,
         file2Only,
-      })
+      }
+
+      setComparisonData(finalData)
+      
+      // Pass data back to parent if callback provided
+      if (onDataReady) {
+        onDataReady(finalData)
+      }
 
       console.log("[v0] Comparison complete")
 
