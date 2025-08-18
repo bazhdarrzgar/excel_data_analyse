@@ -15,6 +15,13 @@ interface ComparisonResultsProps {
   file1: FileData
   file2: FileData
   config: ComparisonConfig
+  settings?: {
+    fuzzyThreshold: number
+    caseSensitive: boolean
+    ignoreWhitespace: boolean
+    maxResults: number
+  }
+  onDataReady?: (data: ComparisonData) => void
 }
 
 interface MatchResult {
