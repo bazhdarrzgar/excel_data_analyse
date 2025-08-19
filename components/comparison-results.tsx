@@ -412,18 +412,31 @@ export function ComparisonResults({ file1, file2, config, settings, onDataReady 
         </Card>
       </div>
 
-      <Tabs defaultValue="matches" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 h-12 bg-card border border-border">
+      <Tabs defaultValue="statistics" className="w-full">
+        <TabsList className="grid w-full grid-cols-4 h-12 bg-card border border-border">
+          <TabsTrigger value="statistics" className="font-sans font-medium">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Statistics
+          </TabsTrigger>
           <TabsTrigger value="matches" className="font-sans font-medium">
             Matches ({comparisonData.matches.length.toLocaleString()})
           </TabsTrigger>
           <TabsTrigger value="file1-only" className="font-sans font-medium">
-            {file1.name} Not Found ({comparisonData.file1Only.length.toLocaleString()})
+            {file1.name} Only ({comparisonData.file1Only.length.toLocaleString()})
           </TabsTrigger>
           <TabsTrigger value="file2-only" className="font-sans font-medium">
-            {file2.name} Unused ({comparisonData.file2Only.length.toLocaleString()})
+            {file2.name} Only ({comparisonData.file2Only.length.toLocaleString()})
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="statistics" className="space-y-4">
+          <ComparisonStatistics 
+            file1={file1}
+            file2={file2}
+            comparisonData={comparisonData}
+            config={config}
+          />
+        </TabsContent>
 
         <TabsContent value="matches" className="space-y-4">
           <Card>
