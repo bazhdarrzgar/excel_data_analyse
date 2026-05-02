@@ -181,61 +181,59 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
     }
   }, [file1.data, file2.data, config.file1Column, config.file2Column, t])
 
-  const downloadExcel = async (data: any[], filename: string, sheetName: string) => {
+  const downloadExcel = async (data: any[], filename: string, sheetName: string, templateFile?: File) => {
     if (data.length === 0) return
 
     const workbook = new ExcelJS.Workbook()
-    const worksheet = workbook.addWorksheet(sheetName, {
-      views: [{ rightToLeft: true }], // RTL for Kurdish/Arabic
-    })
+    
+    if (templateFile) {
+      const buffer = await templateFile.arrayBuffer()
+      await workbook.xlsx.load(buffer)
+    } else {
+      workbook.addWorksheet(sheetName)
+    }
+
+    const worksheet = workbook.worksheets[0]
+    worksheet.name = sheetName
+
+    // Save styles from row 1 and row 2 before modifying
+    const headerStyle = worksheet.getRow(1).getCell(1).style
+    const dataStyle = worksheet.getRow(2).getCell(1).style || headerStyle
 
     // Extract headers
     const headers = Object.keys(data[0])
 
-    // Set columns with appropriate widths
-    worksheet.columns = headers.map((header) => ({
-      header: header,
-      key: header,
-      width: Math.max(header.length + 5, 20), // Dynamic width based on header length
-    }))
-
-    // Add rows
-    worksheet.addRows(data)
-
-    // Style the header row
-    const headerRow = worksheet.getRow(1)
-    headerRow.font = { bold: true, name: "Arial", size: 12 }
-    headerRow.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
-    headerRow.height = 30
-
-    headerRow.eachCell((cell) => {
-      cell.fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: "FFF2F2F2" }, // Light gray background like original
-      }
-      cell.border = {
-        top: { style: "thin", color: { argb: "FF000000" } },
-        left: { style: "thin", color: { argb: "FF000000" } },
-        bottom: { style: "thin", color: { argb: "FF000000" } },
-        right: { style: "thin", color: { argb: "FF000000" } },
+    // Rebuild columns. This maps the data keys and sets row 1 header text.
+    worksheet.columns = headers.map((header, i) => {
+      const existingCol = worksheet.getColumn(i + 1)
+      return {
+        header: header,
+        key: header,
+        width: existingCol?.width || Math.max(header.length + 5, 20),
       }
     })
 
-    // Style the data rows
-    worksheet.eachRow((row, rowNumber) => {
-      if (rowNumber > 1) {
-        row.alignment = { vertical: "middle", horizontal: "center", wrapText: true }
-        row.font = { name: "Arial", size: 11 }
-        row.eachCell((cell) => {
-          cell.border = {
-            top: { style: "thin", color: { argb: "FF000000" } },
-            left: { style: "thin", color: { argb: "FF000000" } },
-            bottom: { style: "thin", color: { argb: "FF000000" } },
-            right: { style: "thin", color: { argb: "FF000000" } },
-          }
-        })
+    // Remove all existing rows after header
+    const rowCount = worksheet.rowCount
+    if (rowCount > 1) {
+      worksheet.spliceRows(2, rowCount - 1)
+    }
+
+    // Apply original header style to row 1
+    worksheet.getRow(1).eachCell((cell) => {
+      if (headerStyle) {
+        cell.style = JSON.parse(JSON.stringify(headerStyle))
       }
+    })
+
+    // Add new data rows and apply original data style
+    data.forEach((rowData) => {
+      const row = worksheet.addRow(rowData)
+      row.eachCell((cell) => {
+        if (dataStyle) {
+          cell.style = JSON.parse(JSON.stringify(dataStyle))
+        }
+      })
     })
 
     // Generate and download
@@ -265,7 +263,7 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
       return row
     })
 
-    downloadExcel(exportData, "matched_data.xlsx", "Matches")
+    downloadExcel(exportData, "matched_data.xlsx", "Matches", file1.originalFile)
   }
 
   const downloadFile1Only = () => {
@@ -283,7 +281,7 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
       return exportRow
     })
 
-    downloadExcel(exportData, "file1_only_data.xlsx", "File1 Only")
+    downloadExcel(exportData, "file1_only_data.xlsx", "File1 Only", file1.originalFile)
   }
 
   const downloadFile2Only = () => {
@@ -301,7 +299,7 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
       return exportRow
     })
 
-    downloadExcel(exportData, "file2_only_data.xlsx", "File2 Only")
+    downloadExcel(exportData, "file2_only_data.xlsx", "File2 Only", file2.originalFile)
   }
 
   if (!comparisonData && !isProcessing) {

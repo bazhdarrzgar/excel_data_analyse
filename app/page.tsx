@@ -13,6 +13,7 @@ export interface FileData {
   name: string
   headers: string[]
   data: Record<string, any>[]
+  originalFile: File
 }
 
 export interface ComparisonConfig {

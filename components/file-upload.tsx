@@ -59,6 +59,7 @@ export function FileUpload({ onFileUpload, fileData }: FileUploadProps) {
           name: file.name,
           headers,
           data,
+          originalFile: file,
         })
       } catch (err) {
         setError(err instanceof Error ? err.message : t.failedProcess)
