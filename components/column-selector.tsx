@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -7,6 +5,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { FileData, ComparisonConfig } from "@/app/page"
+import { useLanguage } from "@/components/language-provider"
 
 interface ColumnSelectorProps {
   file1: FileData
@@ -16,6 +15,7 @@ interface ColumnSelectorProps {
 }
 
 export function ColumnSelector({ file1, file2, onConfigChange, currentConfig }: ColumnSelectorProps) {
+  const { t, dir } = useLanguage()
   const [file1Column, setFile1Column] = useState<string>("")
   const [file2Column, setFile2Column] = useState<string>("")
   const [file1AdditionalColumns, setFile1AdditionalColumns] = useState<string[]>([])
@@ -58,32 +58,31 @@ export function ColumnSelector({ file1, file2, onConfigChange, currentConfig }: 
   const canSave = file1Column && file2Column
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" dir={dir}>
       <Card className="border-border shadow-sm">
-        <CardHeader className="pb-6">
-          <CardTitle className="font-sans text-2xl">Select Comparison Columns</CardTitle>
+        <CardHeader className="pb-6 text-start">
+          <CardTitle className="font-sans text-2xl">{t.selectComparisonColumns}</CardTitle>
           <CardDescription className="text-base leading-relaxed">
-            Choose which columns to compare between the two files. The comparison will use fuzzy matching to find
-            similar data with intelligent scoring.
+            {t.comparisonDescription}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
-          <div className="mb-6 p-4 bg-accent/5 border border-accent/20 rounded-lg">
+          <div className="mb-6 p-4 bg-accent/5 border border-accent/20 rounded-lg text-start">
             <p className="text-sm font-medium text-accent-foreground">
-              <span className="font-semibold">Comparison Direction:</span> Each record from{" "}
-              <span className="font-semibold text-accent">{file1.name}</span> will be searched for matches in{" "}
-              <span className="font-semibold text-accent">{file2.name}</span> using intelligent fuzzy matching.
+              <span className="font-semibold">{t.comparisonDirection}:</span> {t.eachRecordFrom}{" "}
+              <span className="font-semibold text-accent">{file1.name}</span> {t.willBeSearched}{" "}
+              <span className="font-semibold text-accent">{file2.name}</span> {t.usingIntelligent}
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid md:grid-cols-2 gap-8 text-start">
             <div className="space-y-4">
               <Label htmlFor="file1-column" className="text-base font-sans font-semibold">
-                Search Column from {file1.name} (Source)
+                {t.searchColumnFrom} {file1.name} ({t.source})
               </Label>
               <Select value={file1Column} onValueChange={setFile1Column}>
                 <SelectTrigger className="h-12 text-base">
-                  <SelectValue placeholder="Select column to compare" />
+                  <SelectValue placeholder={t.selectColumnPlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
                   {file1.headers.map((header) => (
@@ -97,11 +96,11 @@ export function ColumnSelector({ file1, file2, onConfigChange, currentConfig }: 
 
             <div className="space-y-4">
               <Label htmlFor="file2-column" className="text-base font-sans font-semibold">
-                Match Against Column from {file2.name} (Target)
+                {t.matchAgainstColumn} {file2.name} ({t.target})
               </Label>
               <Select value={file2Column} onValueChange={setFile2Column}>
                 <SelectTrigger className="h-12 text-base">
-                  <SelectValue placeholder="Select column to compare" />
+                  <SelectValue placeholder={t.selectColumnPlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
                   {file2.headers.map((header) => (
@@ -121,7 +120,7 @@ export function ColumnSelector({ file1, file2, onConfigChange, currentConfig }: 
               size="lg"
               className="px-8 py-3 text-base font-sans font-semibold"
             >
-              Configure Comparison
+              {t.configureComparison}
             </Button>
           </div>
         </CardContent>
@@ -129,21 +128,21 @@ export function ColumnSelector({ file1, file2, onConfigChange, currentConfig }: 
 
       {canSave && (
         <Card className="border-border shadow-sm">
-          <CardHeader className="pb-6">
-            <CardTitle className="font-sans text-xl">Additional Columns for Output</CardTitle>
+          <CardHeader className="pb-6 text-start">
+            <CardTitle className="font-sans text-xl">{t.additionalColumnsOutput}</CardTitle>
             <CardDescription className="text-base">
-              Select additional columns to include in the comparison results and download files.
+              {t.additionalColumnsDescription}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid md:grid-cols-2 gap-8 text-start">
               <div className="space-y-4">
-                <Label className="text-base font-sans font-semibold">Additional columns from {file1.name}</Label>
+                <Label className="text-base font-sans font-semibold">{t.additionalColumnsFrom} {file1.name}</Label>
                 <div className="space-y-3 max-h-64 overflow-y-auto p-4 bg-muted/30 rounded-lg border">
                   {file1.headers
                     .filter((header) => header !== file1Column)
                     .map((header) => (
-                      <div key={header} className="flex items-center space-x-3">
+                      <div key={header} className="flex items-center gap-3">
                         <Checkbox
                           id={`file1-${header}`}
                           checked={file1AdditionalColumns.includes(header)}
@@ -158,12 +157,12 @@ export function ColumnSelector({ file1, file2, onConfigChange, currentConfig }: 
               </div>
 
               <div className="space-y-4">
-                <Label className="text-base font-sans font-semibold">Additional columns from {file2.name}</Label>
+                <Label className="text-base font-sans font-semibold">{t.additionalColumnsFrom} {file2.name}</Label>
                 <div className="space-y-3 max-h-64 overflow-y-auto p-4 bg-muted/30 rounded-lg border">
                   {file2.headers
                     .filter((header) => header !== file2Column)
                     .map((header) => (
-                      <div key={header} className="flex items-center space-x-3">
+                      <div key={header} className="flex items-center gap-3">
                         <Checkbox
                           id={`file2-${header}`}
                           checked={file2AdditionalColumns.includes(header)}

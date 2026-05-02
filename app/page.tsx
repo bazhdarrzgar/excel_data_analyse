@@ -6,6 +6,8 @@ import { ColumnSelector } from "@/components/column-selector"
 import { ComparisonResults } from "@/components/comparison-results"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useLanguage } from "@/components/language-provider"
+import { SettingsSwitcher } from "@/components/settings-switcher"
 
 export interface FileData {
   name: string
@@ -23,6 +25,7 @@ export interface ComparisonConfig {
 }
 
 export default function ExcelComparisonApp() {
+  const { t, dir } = useLanguage()
   const [file1, setFile1] = useState<FileData | null>(null)
   const [file2, setFile2] = useState<FileData | null>(null)
   const [comparisonConfig, setComparisonConfig] = useState<ComparisonConfig | null>(null)
@@ -40,28 +43,31 @@ export default function ExcelComparisonApp() {
   const canCompare = file1 && file2 && comparisonConfig
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/30">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/30 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+        <div className="flex justify-end pt-2">
+          <SettingsSwitcher />
+        </div>
+
         <div className="text-center space-y-4 py-8">
           <h1 className="font-sans font-bold text-4xl lg:text-5xl tracking-tight text-foreground">
-            Excel File Comparison Tool
+            {t.title}
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Upload two Excel files and compare data with intelligent fuzzy matching. Perfect for business users who need
-            reliable data analysis.
+            {t.description}
           </p>
         </div>
 
-        <Tabs defaultValue="upload" className="w-full">
+        <Tabs defaultValue="upload" className="w-full" dir={dir}>
           <TabsList className="grid w-full grid-cols-3 h-12 bg-card border border-border">
             <TabsTrigger value="upload" className="font-sans font-medium">
-              Upload Files
+              {t.uploadFiles}
             </TabsTrigger>
             <TabsTrigger value="configure" disabled={!file1 || !file2} className="font-sans font-medium">
-              Configure Comparison
+              {t.configureComparison}
             </TabsTrigger>
             <TabsTrigger value="results" disabled={!canCompare} className="font-sans font-medium">
-              View Results
+              {t.viewResults}
             </TabsTrigger>
           </TabsList>
 
@@ -69,8 +75,8 @@ export default function ExcelComparisonApp() {
             <div className="grid md:grid-cols-2 gap-8">
               <Card className="border-border shadow-sm hover:shadow-md transition-shadow">
                 <CardHeader className="pb-4">
-                  <CardTitle className="font-sans text-xl">File 1</CardTitle>
-                  <CardDescription className="text-base">Upload your first Excel or CSV file</CardDescription>
+                  <CardTitle className="font-sans text-xl">{t.file1}</CardTitle>
+                  <CardDescription className="text-base">{t.uploadFirst}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <FileUpload onFileUpload={(data) => handleFileUpload(data, 1)} fileData={file1} />
@@ -79,8 +85,8 @@ export default function ExcelComparisonApp() {
 
               <Card className="border-border shadow-sm hover:shadow-md transition-shadow">
                 <CardHeader className="pb-4">
-                  <CardTitle className="font-sans text-xl">File 2</CardTitle>
-                  <CardDescription className="text-base">Upload your second Excel or CSV file</CardDescription>
+                  <CardTitle className="font-sans text-xl">{t.file2}</CardTitle>
+                  <CardDescription className="text-base">{t.uploadSecond}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <FileUpload onFileUpload={(data) => handleFileUpload(data, 2)} fileData={file2} />

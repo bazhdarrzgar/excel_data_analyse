@@ -1,5 +1,3 @@
-"use client"
-
 import { useCallback, useState } from "react"
 import { useDropzone } from "react-dropzone"
 import * as XLSX from "xlsx"
@@ -7,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle } from "lucide-react"
 import type { FileData } from "@/app/page"
+import { useLanguage } from "@/components/language-provider"
 
 interface FileUploadProps {
   onFileUpload: (data: FileData) => void
@@ -14,6 +13,7 @@ interface FileUploadProps {
 }
 
 export function FileUpload({ onFileUpload, fileData }: FileUploadProps) {
+  const { t, dir } = useLanguage()
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -34,7 +34,7 @@ export function FileUpload({ onFileUpload, fileData }: FileUploadProps) {
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][]
 
         if (jsonData.length === 0) {
-          throw new Error("File appears to be empty")
+          throw new Error(t.fileEmpty)
         }
 
         // Extract headers and data
@@ -61,12 +61,12 @@ export function FileUpload({ onFileUpload, fileData }: FileUploadProps) {
           data,
         })
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to process file")
+        setError(err instanceof Error ? err.message : t.failedProcess)
       } finally {
         setIsProcessing(false)
       }
     },
-    [onFileUpload],
+    [onFileUpload, t],
   )
 
   const onDrop = useCallback(
@@ -91,16 +91,16 @@ export function FileUpload({ onFileUpload, fileData }: FileUploadProps) {
 
   if (fileData) {
     return (
-      <Card className="border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/50 shadow-sm">
+      <Card className="border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/50 shadow-sm" dir={dir}>
         <CardContent className="p-6">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-4">
             <div className="flex-shrink-0">
               <CheckCircle className="h-6 w-6 text-emerald-600" />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 text-start">
               <p className="font-sans font-semibold text-emerald-900 dark:text-emerald-100 truncate">{fileData.name}</p>
               <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
-                {fileData.data.length.toLocaleString()} rows • {fileData.headers.length} columns
+                {fileData.data.length.toLocaleString()} {t.rows} • {fileData.headers.length} {t.columns}
               </p>
             </div>
             <Button
@@ -109,7 +109,7 @@ export function FileUpload({ onFileUpload, fileData }: FileUploadProps) {
               onClick={() => onFileUpload(fileData)}
               className="border-emerald-300 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700 dark:text-emerald-300 font-sans"
             >
-              Change File
+              {t.changeFile}
             </Button>
           </div>
         </CardContent>
@@ -118,7 +118,7 @@ export function FileUpload({ onFileUpload, fileData }: FileUploadProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir={dir}>
       <Card
         {...getRootProps()}
         className={`border-2 border-dashed cursor-pointer transition-all duration-200 shadow-sm ${
@@ -142,17 +142,17 @@ export function FileUpload({ onFileUpload, fileData }: FileUploadProps) {
             <div className="space-y-3">
               <h3 className="text-xl font-sans font-semibold">
                 {isProcessing
-                  ? "Processing file..."
+                  ? t.processing
                   : isDragActive
-                    ? "Drop the file here"
-                    : "Drag & drop your file here"}
+                    ? t.dropHere
+                    : t.dragDrop}
               </h3>
-              <p className="text-muted-foreground">Supports Excel (.xlsx, .xls) and CSV files up to 10MB</p>
+              <p className="text-muted-foreground">{t.supports}</p>
             </div>
             {!isProcessing && (
               <Button variant="outline" size="lg" className="mt-6 font-sans font-medium bg-transparent">
-                <FileSpreadsheet className="h-5 w-5 mr-2" />
-                Browse Files
+                <FileSpreadsheet className="h-5 w-5 mx-2" />
+                {t.browseFiles}
               </Button>
             )}
           </div>
@@ -162,7 +162,7 @@ export function FileUpload({ onFileUpload, fileData }: FileUploadProps) {
       {error && (
         <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/50 shadow-sm">
           <CardContent className="p-4">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center gap-3">
               <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
               <p className="text-red-900 dark:text-red-100 font-medium">{error}</p>
             </div>
