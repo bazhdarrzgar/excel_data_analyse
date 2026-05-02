@@ -23,6 +23,8 @@ interface MatchResult {
   score: number
   file1Value: string
   file2Value: string
+  file1OriginalWordCount: number
+  file2OriginalWordCount: number
 }
 
 interface ComparisonData {
@@ -40,6 +42,16 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
   const [previewMatches, setPreviewMatches] = useState<MatchResult[]>([])
   const [showPreview, setShowPreview] = useState(false)
 
+  const truncateWords = (text: string, count?: number) => {
+    if (!count) return text.trim()
+    const words = text.trim().split(/\s+/).filter(Boolean)
+    return words.slice(0, count).join(" ")
+  }
+
+  const getWordCount = (text: string) => {
+    return text.trim().split(/\s+/).filter(Boolean).length
+  }
+
   const performComparison = useCallback(async () => {
     console.log("[v0] Starting comparison process")
     setIsProcessing(true)
@@ -56,11 +68,15 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
       setCurrentStep(t.preparingSearch)
 
       const file2SearchData = file2.data
-        .map((row, index) => ({
-          value: String(row[config.file2Column] || "").trim(),
-          originalRow: row,
-          index,
-        }))
+        .map((row, index) => {
+          const originalValue = String(row[config.file2Column] || "").trim()
+          return {
+            value: truncateWords(originalValue, config.file2WordCount),
+            originalValue,
+            originalRow: row,
+            index,
+          }
+        })
         .filter((item) => item.value !== "")
 
       console.log("[v0] Prepared search data:", file2SearchData.length, "items")
@@ -102,7 +118,7 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
           continue
         }
 
-        const searchResults = fuse.search(file1Value)
+        const searchResults = fuse.search(truncateWords(file1Value, config.file1WordCount))
 
         if (searchResults.length > 0) {
           const bestMatch = searchResults[0]
@@ -113,7 +129,9 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
             file2Row,
             score: 1 - (bestMatch.score || 0),
             file1Value,
-            file2Value: bestMatch.item.value,
+            file2Value: bestMatch.item.originalValue,
+            file1OriginalWordCount: getWordCount(file1Value),
+            file2OriginalWordCount: getWordCount(bestMatch.item.originalValue),
           }
 
           matches.push(matchResult)
@@ -275,7 +293,9 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
     const exportData = comparisonData.matches.map((match) => {
       const row: Record<string, any> = {
         [`${config.file1Column}_File1`]: match.file1Value,
+        [`${t.originalWordCount}_File1`]: match.file1OriginalWordCount,
         [`${config.file2Column}_File2`]: match.file2Value,
+        [`${t.originalWordCount}_File2`]: match.file2OriginalWordCount,
         Similarity_Score: Math.round(match.score * 100) + "%",
       }
 
@@ -299,6 +319,7 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
     const exportData = comparisonData.file1Only.map((row) => {
       const exportRow: Record<string, any> = {
         [config.file1Column]: row[config.file1Column] || "",
+        [t.originalWordCount]: getWordCount(String(row[config.file1Column] || "")),
       }
 
       config.additionalColumns.file1.forEach((col) => {
@@ -317,6 +338,7 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
     const exportData = comparisonData.file2Only.map((row) => {
       const exportRow: Record<string, any> = {
         [config.file2Column]: row[config.file2Column] || "",
+        [t.originalWordCount]: getWordCount(String(row[config.file2Column] || "")),
       }
 
       config.additionalColumns.file2.forEach((col) => {
@@ -494,8 +516,18 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
                   <div key={index} className="border rounded-lg p-4 space-y-2">
                     <div className="flex justify-between items-start gap-4">
                       <div className="space-y-1">
-                        <p className="font-medium">{match.file1Value}</p>
-                        <p className="text-sm text-muted-foreground">↔ {match.file2Value}</p>
+                        <p className="font-medium">
+                          {match.file1Value}{" "}
+                          <span className="text-xs text-muted-foreground font-normal">
+                            ({match.file1OriginalWordCount} {t.words})
+                          </span>
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          ↔ {match.file2Value}{" "}
+                          <span className="text-xs text-muted-foreground font-normal">
+                            ({match.file2OriginalWordCount} {t.words})
+                          </span>
+                        </p>
                       </div>
                       <Badge variant="secondary">{Math.round(match.score * 100)}% {t.match}</Badge>
                     </div>
@@ -545,7 +577,12 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
               <div className="space-y-2 max-h-96 overflow-y-auto text-start">
                 {comparisonData.file1Only.map((row, index) => (
                   <div key={index} className="border rounded-lg p-3">
-                    <p className="font-medium">{row[config.file1Column] || "N/A"}</p>
+                    <p className="font-medium">
+                      {row[config.file1Column] || "N/A"}{" "}
+                      <span className="text-xs text-muted-foreground font-normal">
+                        ({getWordCount(String(row[config.file1Column] || ""))} {t.words})
+                      </span>
+                    </p>
                     {config.additionalColumns.file1.length > 0 && (
                       <div className="text-xs text-muted-foreground mt-2 pt-2 border-t space-y-1">
                         {config.additionalColumns.file1.map((col) => (
@@ -585,7 +622,12 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
               <div className="space-y-2 max-h-96 overflow-y-auto text-start">
                 {comparisonData.file2Only.map((row, index) => (
                   <div key={index} className="border rounded-lg p-3">
-                    <p className="font-medium">{row[config.file2Column] || "N/A"}</p>
+                    <p className="font-medium">
+                      {row[config.file2Column] || "N/A"}{" "}
+                      <span className="text-xs text-muted-foreground font-normal">
+                        ({getWordCount(String(row[config.file2Column] || ""))} {t.words})
+                      </span>
+                    </p>
                     {config.additionalColumns.file2.length > 0 && (
                       <div className="text-xs text-muted-foreground mt-2 pt-2 border-t space-y-1">
                         {config.additionalColumns.file2.map((col) => (

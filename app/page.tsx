@@ -19,6 +19,8 @@ export interface FileData {
 export interface ComparisonConfig {
   file1Column: string
   file2Column: string
+  file1WordCount?: number
+  file2WordCount?: number
   additionalColumns: {
     file1: string[]
     file2: string[]

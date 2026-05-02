@@ -20,6 +20,8 @@ export function ColumnSelector({ file1, file2, onConfigChange, currentConfig }: 
   const [file2Column, setFile2Column] = useState<string>("")
   const [file1AdditionalColumns, setFile1AdditionalColumns] = useState<string[]>([])
   const [file2AdditionalColumns, setFile2AdditionalColumns] = useState<string[]>([])
+  const [file1WordCount, setFile1WordCount] = useState<string>("all")
+  const [file2WordCount, setFile2WordCount] = useState<string>("all")
 
   useEffect(() => {
     if (currentConfig) {
@@ -27,6 +29,8 @@ export function ColumnSelector({ file1, file2, onConfigChange, currentConfig }: 
       setFile2Column(currentConfig.file2Column)
       setFile1AdditionalColumns(currentConfig.additionalColumns.file1)
       setFile2AdditionalColumns(currentConfig.additionalColumns.file2)
+      setFile1WordCount(currentConfig.file1WordCount?.toString() || "all")
+      setFile2WordCount(currentConfig.file2WordCount?.toString() || "all")
     }
   }, [currentConfig])
 
@@ -35,6 +39,8 @@ export function ColumnSelector({ file1, file2, onConfigChange, currentConfig }: 
       onConfigChange({
         file1Column,
         file2Column,
+        file1WordCount: file1WordCount === "all" ? undefined : Number.parseInt(file1WordCount),
+        file2WordCount: file2WordCount === "all" ? undefined : Number.parseInt(file2WordCount),
         additionalColumns: {
           file1: file1AdditionalColumns,
           file2: file2AdditionalColumns,
@@ -56,6 +62,22 @@ export function ColumnSelector({ file1, file2, onConfigChange, currentConfig }: 
   }
 
   const canSave = file1Column && file2Column
+
+  const getMaxWords = (data: any[], column: string) => {
+    if (!column) return 0
+    let max = 0
+    data.forEach((row) => {
+      const val = String(row[column] || "").trim()
+      if (val) {
+        const count = val.split(/\s+/).filter(Boolean).length
+        if (count > max) max = count
+      }
+    })
+    return max
+  }
+
+  const file1MaxWords = getMaxWords(file1.data, file1Column)
+  const file2MaxWords = getMaxWords(file2.data, file2Column)
 
   return (
     <div className="space-y-8" dir={dir}>
@@ -112,6 +134,48 @@ export function ColumnSelector({ file1, file2, onConfigChange, currentConfig }: 
               </Select>
             </div>
           </div>
+
+          {canSave && (
+            <div className="grid md:grid-cols-2 gap-8 text-start animate-in fade-in slide-in-from-top-4 duration-500">
+              <div className="space-y-4">
+                <Label className="text-base font-sans font-semibold">
+                  {t.wordCountComparison} ({file1.name})
+                </Label>
+                <Select value={file1WordCount} onValueChange={setFile1WordCount}>
+                  <SelectTrigger className="h-12 text-base">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t.all} {t.words}</SelectItem>
+                    {Array.from({ length: file1MaxWords }, (_, i) => i + 1).map((n) => (
+                      <SelectItem key={n} value={n.toString()}>
+                        {t.compareFirst} {n} {t.words}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-4">
+                <Label className="text-base font-sans font-semibold">
+                  {t.wordCountComparison} ({file2.name})
+                </Label>
+                <Select value={file2WordCount} onValueChange={setFile2WordCount}>
+                  <SelectTrigger className="h-12 text-base">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t.all} {t.words}</SelectItem>
+                    {Array.from({ length: file2MaxWords }, (_, i) => i + 1).map((n) => (
+                      <SelectItem key={n} value={n.toString()}>
+                        {t.compareFirst} {n} {t.words}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-center pt-4">
             <Button

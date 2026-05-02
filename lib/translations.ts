@@ -72,6 +72,11 @@ export interface Translations {
   processingRecords: string
   processed: string
   finalizingResults: string
+  wordCountComparison: string
+  compareFirst: string
+  words: string
+  originalWordCount: string
+  all: string
 }
 
 export const translations: Record<Language, Translations> = {
@@ -147,6 +152,11 @@ export const translations: Record<Language, Translations> = {
     processingRecords: "Processing records...",
     processed: "Processed",
     finalizingResults: "Finalizing results...",
+    wordCountComparison: "Word Count Comparison",
+    compareFirst: "Compare first",
+    words: "words",
+    originalWordCount: "Original Word Count",
+    all: "All",
   },
   ckb: {
     title: "ئامرازی بەراوردکردنی فایلی ئێکسڵ",
@@ -220,6 +230,11 @@ export const translations: Record<Language, Translations> = {
     processingRecords: "پڕۆسێسکردنی تۆمارەکان...",
     processed: "پڕۆسێس کراوە",
     finalizingResults: "تەواوکردنی ئەنجامەکان...",
+    wordCountComparison: "بەراوردکاری ژمارەی وشە",
+    compareFirst: "بەراوردکردنی یەکەم",
+    words: "وشە",
+    originalWordCount: "ژمارەی وشەی ڕەسەن",
+    all: "هەموو",
   },
   ar: {
     title: "أداة مقارنة ملفات إكسل",
@@ -293,5 +308,10 @@ export const translations: Record<Language, Translations> = {
     processingRecords: "معالجة السجلات...",
     processed: "تمت معالجتها",
     finalizingResults: "نهائي النتائج...",
+    wordCountComparison: "مقارنة عدد الكلمات",
+    compareFirst: "مقارنة أول",
+    words: "كلمات",
+    originalWordCount: "عدد الكلمات الأصلي",
+    all: "الكل",
   },
 }
