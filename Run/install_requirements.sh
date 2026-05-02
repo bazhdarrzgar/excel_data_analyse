@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Move to project root
+cd "$(dirname "$0")/.."
+
 # Clear screen for a clean look
 clear
 
@@ -16,7 +19,7 @@ MODULES_EXIST=[ -d "node_modules" ]
 if [ -x "$NODE_EXIST" ] && [ -x "$NPM_EXIST" ] && [ -d "node_modules" ]; then
     echo "✨ Requirements is already exist and up to date for running it in linux."
     echo ""
-    echo "You can start the project by running: ./launcher.sh"
+    echo "You can start the project by running: ./Run/launcher.sh"
     exit 0
 fi
 
@@ -50,4 +53,4 @@ fi
 echo ""
 echo "✨ Requirements is already exist and up to date for running it in linux."
 echo "===================================================="
-echo "🚀 You're all set! Run ./launcher.sh to start the app."
+echo "🚀 You're all set! Run ./Run/launcher.sh to start the app."

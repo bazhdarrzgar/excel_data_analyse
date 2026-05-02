@@ -1,4 +1,7 @@
 #!/bin/bash
+# Move to project root
+cd "$(dirname "$0")/.."
+
 echo "Starting Project Dashboard..."
 node scripts/launcher.mjs
 if [ $? -ne 0 ]; then

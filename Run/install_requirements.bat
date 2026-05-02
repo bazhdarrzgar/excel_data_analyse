@@ -2,8 +2,8 @@
 title Project Requirements Installer
 setlocal enabledelayedexpansion
 
-:: Set colors for a premium feel (0A is Green on Black, but let's keep it simple or use powershell for better colors if needed)
-:: For now, just standard console but with good formatting.
+:: Move to project root
+cd /d "%~dp0.."
 
 echo ====================================================
 echo    🚀 Project Requirements Installer (Windows)   
@@ -38,7 +38,7 @@ if exist node_modules (
 if %NODE_FOUND%==1 if %NPM_FOUND%==1 if %MODULES_FOUND%==1 (
     echo ✨ Requirements is already exist and up to date for running it in windows.
     echo.
-    echo You can start the project by double-clicking launcher.bat
+    echo You can start the project by double-clicking Run\launcher.bat
     echo.
     pause
     exit /b 0
@@ -87,6 +87,6 @@ if %MODULES_FOUND%==0 (
 echo.
 echo ✨ Requirements is already exist and up to date for running it in windows.
 echo ====================================================
-echo 🚀 You're all set! Run launcher.bat to start the app.
+echo 🚀 You're all set! Run Run\launcher.bat to start the app.
 echo.
 pause

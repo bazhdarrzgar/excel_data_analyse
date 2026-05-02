@@ -18,19 +18,19 @@ This project includes automated scripts to handle installation and execution on 
 Choose the script corresponding to your operating system to automatically install all dependencies (including Node.js if missing).
 
 ### **Windows**
-1. Locate `install_requirements.bat` in the project root.
-2. **Double-click** the file to run it.
+1. Open the **`Run`** folder.
+2. **Double-click** `install_requirements.bat` to run it.
 3. The script will check for Node.js, install it if necessary, and run `npm install`.
 
 ### **Linux**
 1. Open your terminal in the project directory.
 2. Make the script executable:
    ```bash
-   chmod +x install_requirements.sh
+   chmod +x Run/install_requirements.sh
    ```
 3. Run the script:
    ```bash
-   ./install_requirements.sh
+   ./Run/install_requirements.sh
    ```
 
 ---
@@ -42,8 +42,8 @@ There are two ways to run the application. We recommend using the **Launcher** f
 ### **Option 1: Using the Launcher (Recommended)**
 The launcher provides a visual Dashboard to start/stop the server and monitor logs.
 
-- **Windows**: Double-click `launcher.bat`
-- **Linux**: Run `./launcher.sh`
+- **Windows**: Double-click **`Run/launcher.bat`**
+- **Linux**: Run **`./Run/launcher.sh`**
 
 Once started, the **Control Panel** will open automatically at:  
 👉 **[http://localhost:4999](http://localhost:4999)**
@@ -66,10 +66,9 @@ The application will be available at **http://localhost:3000** (or the next avai
 
 - `app/`: Next.js app router components and pages.
 - `scripts/`: System scripts including the custom launcher logic.
+- `Run/`: **User-facing scripts for installation and launching.**
 - `components/`: Reusable UI components.
 - `public/`: Static assets and images.
-- `install_requirements.*`: Environment-aware setup scripts.
-- `launcher.*`: Cross-platform application entry points.
 
 ## 🔄 Git Synchronization
 For developers, use the provided script to quickly push changes to GitHub:
