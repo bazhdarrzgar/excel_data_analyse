@@ -184,59 +184,86 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
   const downloadExcel = async (data: any[], filename: string, sheetName: string, templateFile?: File) => {
     if (data.length === 0) return
 
-    const workbook = new ExcelJS.Workbook()
-    
+    let isRTL = false
+    let headerStyle: any = null
+    let dataStyle: any = null
+    const colWidths: Record<number, number> = {}
+
+    // Safely extract styles from template without modifying the original file
     if (templateFile) {
-      const buffer = await templateFile.arrayBuffer()
-      await workbook.xlsx.load(buffer)
-    } else {
-      workbook.addWorksheet(sheetName)
+      try {
+        const templateWorkbook = new ExcelJS.Workbook()
+        const buffer = await templateFile.arrayBuffer()
+        await templateWorkbook.xlsx.load(buffer)
+        const templateSheet = templateWorkbook.worksheets[0]
+
+        if (templateSheet) {
+          isRTL = templateSheet.views?.some((v) => v.rightToLeft) ?? false
+
+          const extractStyle = (style: any) => {
+            if (!style) return null
+            return {
+              font: style.font ? JSON.parse(JSON.stringify(style.font)) : undefined,
+              border: style.border ? JSON.parse(JSON.stringify(style.border)) : undefined,
+              fill: style.fill ? JSON.parse(JSON.stringify(style.fill)) : undefined,
+              alignment: style.alignment ? JSON.parse(JSON.stringify(style.alignment)) : undefined,
+              numFmt: style.numFmt,
+            }
+          }
+
+          const hCell = templateSheet.getRow(1).getCell(1)
+          if (hCell) headerStyle = extractStyle(hCell.style)
+
+          const dCell = templateSheet.getRow(2).getCell(1) || hCell
+          if (dCell) dataStyle = extractStyle(dCell.style)
+
+          // Extract column widths up to reasonable amount
+          for (let i = 1; i <= 50; i++) {
+            const col = templateSheet.getColumn(i)
+            if (col && col.width) colWidths[i] = col.width
+          }
+        }
+      } catch (err) {
+        console.error("Failed to read template styles:", err)
+      }
     }
 
-    const worksheet = workbook.worksheets[0]
-    worksheet.name = sheetName
+    // Create a fresh workbook to prevent corruption
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet(sheetName, {
+      views: [{ rightToLeft: isRTL }],
+    })
 
-    // Save styles from row 1 and row 2 before modifying
-    const headerStyle = worksheet.getRow(1).getCell(1).style
-    const dataStyle = worksheet.getRow(2).getCell(1).style || headerStyle
-
-    // Extract headers
     const headers = Object.keys(data[0])
 
-    // Rebuild columns. This maps the data keys and sets row 1 header text.
-    worksheet.columns = headers.map((header, i) => {
-      const existingCol = worksheet.getColumn(i + 1)
-      return {
-        header: header,
-        key: header,
-        width: existingCol?.width || Math.max(header.length + 5, 20),
-      }
-    })
+    worksheet.columns = headers.map((header, i) => ({
+      header: header,
+      key: header,
+      width: colWidths[i + 1] || Math.max(header.length + 5, 20),
+    }))
 
-    // Remove all existing rows after header
-    const rowCount = worksheet.rowCount
-    if (rowCount > 1) {
-      worksheet.spliceRows(2, rowCount - 1)
-    }
+    worksheet.addRows(data)
 
-    // Apply original header style to row 1
+    // Apply extracted styles safely
     worksheet.getRow(1).eachCell((cell) => {
       if (headerStyle) {
-        cell.style = JSON.parse(JSON.stringify(headerStyle))
+        // Clean up undefined properties
+        const cleanStyle = Object.fromEntries(Object.entries(headerStyle).filter(([_, v]) => v !== undefined))
+        cell.style = cleanStyle
       }
     })
 
-    // Add new data rows and apply original data style
-    data.forEach((rowData) => {
-      const row = worksheet.addRow(rowData)
-      row.eachCell((cell) => {
-        if (dataStyle) {
-          cell.style = JSON.parse(JSON.stringify(dataStyle))
-        }
-      })
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        row.eachCell((cell) => {
+          if (dataStyle) {
+            const cleanStyle = Object.fromEntries(Object.entries(dataStyle).filter(([_, v]) => v !== undefined))
+            cell.style = cleanStyle
+          }
+        })
+      }
     })
 
-    // Generate and download
     const buffer = await workbook.xlsx.writeBuffer()
     const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
     saveAs(blob, filename)
