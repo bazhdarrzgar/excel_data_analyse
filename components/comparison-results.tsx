@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useMemo } from "react"
 import Fuse from "fuse.js"
 import ExcelJS from "exceljs"
 import { saveAs } from "file-saver"
@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
-import { Download, Users, UserX, Eye, Play } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Download, Users, UserX, Eye, Play, Search, Trash2, CopyCheck } from "lucide-react"
 import type { FileData, ComparisonConfig } from "@/app/page"
 import { useLanguage } from "@/components/language-provider"
 
@@ -42,6 +43,16 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
   const [previewMatches, setPreviewMatches] = useState<MatchResult[]>([])
   const [showPreview, setShowPreview] = useState(false)
 
+  // Search state per tab
+  const [matchSearch, setMatchSearch] = useState("")
+  const [file1Search, setFile1Search] = useState("")
+  const [file2Search, setFile2Search] = useState("")
+
+  // Deleted rows state (stored as original indices into comparisonData arrays)
+  const [deletedMatches, setDeletedMatches] = useState<Set<number>>(new Set())
+  const [deletedFile1, setDeletedFile1] = useState<Set<number>>(new Set())
+  const [deletedFile2, setDeletedFile2] = useState<Set<number>>(new Set())
+
   const truncateWords = (text: string, count?: number) => {
     if (!count) return text.trim()
     const words = text.trim().split(/\s+/).filter(Boolean)
@@ -51,6 +62,101 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
   const getWordCount = (text: string) => {
     return text.trim().split(/\s+/).filter(Boolean).length
   }
+
+  // ---- Derived: non-deleted arrays (used for both display and download) ----
+  const activeMatches = useMemo(() =>
+    (comparisonData?.matches || []).filter((_, i) => !deletedMatches.has(i))
+  , [comparisonData?.matches, deletedMatches])
+
+  const activeFile1Only = useMemo(() =>
+    (comparisonData?.file1Only || []).filter((_, i) => !deletedFile1.has(i))
+  , [comparisonData?.file1Only, deletedFile1])
+
+  const activeFile2Only = useMemo(() =>
+    (comparisonData?.file2Only || []).filter((_, i) => !deletedFile2.has(i))
+  , [comparisonData?.file2Only, deletedFile2])
+
+  // ---- Derived: fuzzy-filtered views (for display only, not for download) ----
+  const filteredMatches = useMemo(() => {
+    if (!matchSearch.trim()) return activeMatches
+    const fuse = new Fuse(activeMatches, {
+      keys: ['file1Value', 'file2Value'],
+      threshold: 0.4,
+      ignoreLocation: true,
+    })
+    return fuse.search(matchSearch.trim()).map(r => r.item)
+  }, [activeMatches, matchSearch])
+
+  const filteredFile1Only = useMemo(() => {
+    if (!file1Search.trim()) return activeFile1Only
+    const fuse = new Fuse(activeFile1Only, {
+      keys: [config.file1Column, ...config.additionalColumns.file1],
+      threshold: 0.4,
+      ignoreLocation: true,
+    })
+    return fuse.search(file1Search.trim()).map(r => r.item)
+  }, [activeFile1Only, file1Search, config.file1Column, config.additionalColumns.file1])
+
+  const filteredFile2Only = useMemo(() => {
+    if (!file2Search.trim()) return activeFile2Only
+    const fuse = new Fuse(activeFile2Only, {
+      keys: [config.file2Column, ...config.additionalColumns.file2],
+      threshold: 0.4,
+      ignoreLocation: true,
+    })
+    return fuse.search(file2Search.trim()).map(r => r.item)
+  }, [activeFile2Only, file2Search, config.file2Column, config.additionalColumns.file2])
+
+  // ---- Delete helpers ----
+  // We delete from the original comparisonData index, not the filtered index.
+  // We find the original index by referencing object identity.
+  const deleteMatchRow = (item: MatchResult) => {
+    const origIdx = (comparisonData?.matches || []).indexOf(item)
+    if (origIdx === -1) return
+    setDeletedMatches(prev => new Set([...prev, origIdx]))
+  }
+
+  const deleteFile1Row = (item: Record<string, any>) => {
+    const origIdx = (comparisonData?.file1Only || []).indexOf(item)
+    if (origIdx === -1) return
+    setDeletedFile1(prev => new Set([...prev, origIdx]))
+  }
+
+  const deleteFile2Row = (item: Record<string, any>) => {
+    const origIdx = (comparisonData?.file2Only || []).indexOf(item)
+    if (origIdx === -1) return
+    setDeletedFile2(prev => new Set([...prev, origIdx]))
+  }
+
+  // ---- Duplicate counters ----
+  // Helper: count duplicates in an array by a key extractor
+  const countDuplicates = (arr: any[], keyFn: (r: any) => string): number => {
+    const seen = new Map<string, number>()
+    arr.forEach(r => { const k = keyFn(r); seen.set(k, (seen.get(k) || 0) + 1) })
+    return Array.from(seen.values()).filter(c => c > 1).reduce((sum, c) => sum + (c - 1), 0)
+  }
+
+  // Source file duplicates (always computed from uploaded data)
+  const file1SourceDupes = useMemo(() =>
+    countDuplicates(file1.data, r => String(r[config.file1Column] || '').trim().toLowerCase())
+  , [file1.data, config.file1Column])
+
+  const file2SourceDupes = useMemo(() =>
+    countDuplicates(file2.data, r => String(r[config.file2Column] || '').trim().toLowerCase())
+  , [file2.data, config.file2Column])
+
+  // Output section duplicates (after comparison)
+  const matchesDupes = useMemo(() =>
+    comparisonData ? countDuplicates(activeMatches, r => String(r.file1Value || '').trim().toLowerCase()) : 0
+  , [activeMatches, comparisonData])
+
+  const file1OnlyDupes = useMemo(() =>
+    comparisonData ? countDuplicates(activeFile1Only, r => String(r[config.file1Column] || '').trim().toLowerCase()) : 0
+  , [activeFile1Only, comparisonData, config.file1Column])
+
+  const file2OnlyDupes = useMemo(() =>
+    comparisonData ? countDuplicates(activeFile2Only, r => String(r[config.file2Column] || '').trim().toLowerCase()) : 0
+  , [activeFile2Only, comparisonData, config.file2Column])
 
   const performComparison = useCallback(async () => {
     console.log("[v0] Starting comparison process")
@@ -290,7 +396,8 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
   const downloadMatches = () => {
     if (!comparisonData) return
 
-    const exportData = comparisonData.matches.map((match) => {
+    // Download activeMatches (non-deleted rows, ignoring current search filter)
+    const exportData = activeMatches.map((match) => {
       const row: Record<string, any> = {
         [`${config.file1Column}_File1`]: match.file1Value,
         [`${t.originalWordCount}_File1`]: match.file1OriginalWordCount,
@@ -316,7 +423,8 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
   const downloadFile1Only = () => {
     if (!comparisonData) return
 
-    const exportData = comparisonData.file1Only.map((row) => {
+    // Download activeFile1Only (non-deleted rows)
+    const exportData = activeFile1Only.map((row) => {
       const exportRow: Record<string, any> = {
         [config.file1Column]: row[config.file1Column] || "",
         [t.originalWordCount]: getWordCount(String(row[config.file1Column] || "")),
@@ -335,7 +443,8 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
   const downloadFile2Only = () => {
     if (!comparisonData) return
 
-    const exportData = comparisonData.file2Only.map((row) => {
+    // Download activeFile2Only (non-deleted rows)
+    const exportData = activeFile2Only.map((row) => {
       const exportRow: Record<string, any> = {
         [config.file2Column]: row[config.file2Column] || "",
         [t.originalWordCount]: getWordCount(String(row[config.file2Column] || "")),
@@ -483,16 +592,76 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
         </Card>
       </div>
 
+      {/* Duplicate Stats Panel */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Source file duplicates */}
+        <Card className="border-border shadow-sm">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <div className="flex items-center gap-2">
+              <CopyCheck className="h-4 w-4 text-violet-500" />
+              <CardTitle className="text-sm font-semibold">Duplicates in Uploaded Files</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border">
+                <div className="text-xs text-muted-foreground truncate pr-2">{file1.name}</div>
+                <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                  file1SourceDupes > 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                }`}>{file1SourceDupes > 0 ? `${file1SourceDupes} dupes` : 'No dupes'}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border">
+                <div className="text-xs text-muted-foreground truncate pr-2">{file2.name}</div>
+                <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                  file2SourceDupes > 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                }`}>{file2SourceDupes > 0 ? `${file2SourceDupes} dupes` : 'No dupes'}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Output section duplicates */}
+        <Card className="border-border shadow-sm">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <div className="flex items-center gap-2">
+              <CopyCheck className="h-4 w-4 text-amber-500" />
+              <CardTitle className="text-sm font-semibold">Duplicates in Output Sections</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="flex flex-col items-center p-3 rounded-lg bg-muted/40 border border-border gap-1">
+                <span className="text-xs text-muted-foreground text-center">Matches</span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                  matchesDupes > 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                }`}>{matchesDupes > 0 ? `${matchesDupes} dupes` : 'None'}</span>
+              </div>
+              <div className="flex flex-col items-center p-3 rounded-lg bg-muted/40 border border-border gap-1">
+                <span className="text-xs text-muted-foreground text-center">Not in File 2</span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                  file1OnlyDupes > 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                }`}>{file1OnlyDupes > 0 ? `${file1OnlyDupes} dupes` : 'None'}</span>
+              </div>
+              <div className="flex flex-col items-center p-3 rounded-lg bg-muted/40 border border-border gap-1">
+                <span className="text-xs text-muted-foreground text-center">Never Matched</span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                  file2OnlyDupes > 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                }`}>{file2OnlyDupes > 0 ? `${file2OnlyDupes} dupes` : 'None'}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
       <Tabs defaultValue="matches" className="w-full" dir={dir}>
         <TabsList className="grid w-full grid-cols-3 h-12 bg-card border border-border">
           <TabsTrigger value="matches" className="font-sans font-medium">
-            {t.matchesFound} ({comparisonData.matches.length.toLocaleString()})
+            {t.matchesFound} ({activeMatches.length.toLocaleString()})
           </TabsTrigger>
           <TabsTrigger value="file1-only" className="font-sans font-medium">
-            {file1.name} {t.notFoundIn} ({comparisonData.file1Only.length.toLocaleString()})
+            {file1.name} {t.notFoundIn} ({activeFile1Only.length.toLocaleString()})
           </TabsTrigger>
           <TabsTrigger value="file2-only" className="font-sans font-medium">
-            {file2.name} {t.neverMatched} ({comparisonData.file2Only.length.toLocaleString()})
+            {file2.name} {t.neverMatched} ({activeFile2Only.length.toLocaleString()})
           </TabsTrigger>
         </TabsList>
 
@@ -504,52 +673,70 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
                   <CardTitle>{t.matchedRecords}</CardTitle>
                   <CardDescription>{t.matchedDescription}</CardDescription>
                 </div>
-                <Button onClick={downloadMatches} disabled={comparisonData.matches.length === 0}>
+                <Button onClick={downloadMatches} disabled={activeMatches.length === 0}>
                   <Download className="h-4 w-4 mx-2" />
                   {t.downloadMatches}
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3 max-h-96 overflow-y-auto text-start">
-                {comparisonData.matches.map((match, index) => (
-                  <div key={index} className="border rounded-lg p-4 space-y-2">
-                    <div className="flex justify-between items-start gap-4">
-                      <div className="space-y-1">
-                        <p className="font-medium">
-                          {match.file1Value}{" "}
-                          <span className="text-xs text-muted-foreground font-normal">
-                            ({match.file1OriginalWordCount} {t.words})
-                          </span>
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          ↔ {match.file2Value}{" "}
-                          <span className="text-xs text-muted-foreground font-normal">
-                            ({match.file2OriginalWordCount} {t.words})
-                          </span>
-                        </p>
-                      </div>
-                      <Badge variant="secondary">{Math.round(match.score * 100)}% {t.match}</Badge>
-                    </div>
-                    {(config.additionalColumns.file1.length > 0 || config.additionalColumns.file2.length > 0) && (
-                      <div className="text-xs text-muted-foreground space-y-1 border-t pt-2 mt-2">
-                        {config.additionalColumns.file1.map((col) => (
-                          <div key={col}>
-                            <span className="font-medium">{col}:</span> {match.file1Row[col] || "N/A"}
-                          </div>
-                        ))}
-                        {config.additionalColumns.file2.map((col) => (
-                          <div key={col}>
-                            <span className="font-medium">{col}:</span> {match.file2Row[col] || "N/A"}
-                          </div>
-                        ))}
-                      </div>
+            <CardContent className="p-0">
+              <div className="px-4 py-2 border-b border-border">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input value={matchSearch} onChange={e => setMatchSearch(e.target.value)} placeholder="Fuzzy search matches..." className="pl-9 h-9" />
+                </div>
+              </div>
+              <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 380px)' }}>
+                <table className="w-full text-sm border-collapse">
+                  <thead className="bg-muted sticky top-0 z-10">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-semibold border border-border whitespace-nowrap">#</th>
+                      <th className="text-left px-4 py-3 font-semibold border border-border whitespace-nowrap">{config.file1Column} (File 1)</th>
+                      <th className="text-left px-4 py-3 font-semibold border border-border whitespace-nowrap">{t.words}</th>
+                      <th className="text-left px-4 py-3 font-semibold border border-border whitespace-nowrap">{config.file2Column} (File 2)</th>
+                      <th className="text-left px-4 py-3 font-semibold border border-border whitespace-nowrap">{t.words}</th>
+                      <th className="text-left px-4 py-3 font-semibold border border-border whitespace-nowrap">{t.match}</th>
+                      {config.additionalColumns.file1.map((col) => (
+                        <th key={`f1-${col}`} className="text-left px-4 py-3 font-semibold border border-border whitespace-nowrap">{col} (F1)</th>
+                      ))}
+                      {config.additionalColumns.file2.map((col) => (
+                        <th key={`f2-${col}`} className="text-left px-4 py-3 font-semibold border border-border whitespace-nowrap">{col} (F2)</th>
+                      ))}
+                      <th className="px-4 py-3 font-semibold border border-border whitespace-nowrap text-center">Del</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredMatches.length === 0 ? (
+                      <tr><td colSpan={7 + config.additionalColumns.file1.length + config.additionalColumns.file2.length} className="text-center py-10 text-muted-foreground border border-border">{t.noMatchesFound}</td></tr>
+                    ) : (
+                      filteredMatches.map((match, index) => (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/30'}>
+                          <td className="px-4 py-2 text-muted-foreground text-xs border border-border">{index + 1}</td>
+                          <td className="px-4 py-2 font-medium border border-border">{match.file1Value}</td>
+                          <td className="px-4 py-2 text-muted-foreground text-xs border border-border text-center">{match.file1OriginalWordCount}</td>
+                          <td className="px-4 py-2 border border-border">{match.file2Value}</td>
+                          <td className="px-4 py-2 text-muted-foreground text-xs border border-border text-center">{match.file2OriginalWordCount}</td>
+                          <td className="px-4 py-2 border border-border text-center">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              match.score >= 0.9 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' :
+                              match.score >= 0.7 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300' :
+                              'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
+                            }`}>{Math.round(match.score * 100)}%</span>
+                          </td>
+                          {config.additionalColumns.file1.map((col) => (
+                            <td key={`f1-${col}`} className="px-4 py-2 text-sm border border-border">{match.file1Row[col] || '—'}</td>
+                          ))}
+                          {config.additionalColumns.file2.map((col) => (
+                            <td key={`f2-${col}`} className="px-4 py-2 text-sm border border-border">{match.file2Row[col] || '—'}</td>
+                          ))}
+                          <td className="px-2 py-2 border border-border text-center">
+                            <button onClick={() => deleteMatchRow(match)} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 hover:text-red-700 transition-colors" title="Delete row"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </td>
+                        </tr>
+                      ))
                     )}
-                  </div>
-                ))}
-                {comparisonData.matches.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">{t.noMatchesFound}</p>
-                )}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
@@ -567,36 +754,52 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
                     {t.notMatchedDescription} ({file2.name})
                   </CardDescription>
                 </div>
-                <Button onClick={downloadFile1Only} disabled={comparisonData.file1Only.length === 0}>
+                <Button onClick={downloadFile1Only} disabled={activeFile1Only.length === 0}>
                   <Download className="h-4 w-4 mx-2" />
                   {t.downloadUnmatched} {file1.name}
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto text-start">
-                {comparisonData.file1Only.map((row, index) => (
-                  <div key={index} className="border rounded-lg p-3">
-                    <p className="font-medium">
-                      {row[config.file1Column] || "N/A"}{" "}
-                      <span className="text-xs text-muted-foreground font-normal">
-                        ({getWordCount(String(row[config.file1Column] || ""))} {t.words})
-                      </span>
-                    </p>
-                    {config.additionalColumns.file1.length > 0 && (
-                      <div className="text-xs text-muted-foreground mt-2 pt-2 border-t space-y-1">
-                        {config.additionalColumns.file1.map((col) => (
-                          <div key={col}>
-                            <span className="font-medium">{col}:</span> {row[col] || "N/A"}
-                          </div>
-                        ))}
-                      </div>
+            <CardContent className="p-0">
+              <div className="px-4 py-2 border-b border-border">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input value={file1Search} onChange={e => setFile1Search(e.target.value)} placeholder="Fuzzy search..." className="pl-9 h-9" />
+                </div>
+              </div>
+              <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 380px)' }}>
+                <table className="w-full text-sm border-collapse">
+                  <thead className="bg-muted sticky top-0 z-10">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-semibold border border-border whitespace-nowrap">#</th>
+                      <th className="text-left px-4 py-3 font-semibold border border-border whitespace-nowrap">{config.file1Column}</th>
+                      <th className="text-left px-4 py-3 font-semibold border border-border whitespace-nowrap">{t.words}</th>
+                      {config.additionalColumns.file1.map((col) => (
+                        <th key={col} className="text-left px-4 py-3 font-semibold border border-border whitespace-nowrap">{col}</th>
+                      ))}
+                      <th className="px-4 py-3 font-semibold border border-border text-center">Del</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredFile1Only.length === 0 ? (
+                      <tr><td colSpan={4 + config.additionalColumns.file1.length} className="text-center py-10 text-muted-foreground border border-border">{t.noUniqueRecords}</td></tr>
+                    ) : (
+                      filteredFile1Only.map((row, index) => (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/30'}>
+                          <td className="px-4 py-2 text-muted-foreground text-xs border border-border">{index + 1}</td>
+                          <td className="px-4 py-2 font-medium border border-border">{row[config.file1Column] || '—'}</td>
+                          <td className="px-4 py-2 text-muted-foreground text-xs border border-border text-center">{getWordCount(String(row[config.file1Column] || ''))}</td>
+                          {config.additionalColumns.file1.map((col) => (
+                            <td key={col} className="px-4 py-2 border border-border">{row[col] || '—'}</td>
+                          ))}
+                          <td className="px-2 py-2 border border-border text-center">
+                            <button onClick={() => deleteFile1Row(row)} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 hover:text-red-700 transition-colors" title="Delete row"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </td>
+                        </tr>
+                      ))
                     )}
-                  </div>
-                ))}
-                {comparisonData.file1Only.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">{t.noUniqueRecords}</p>
-                )}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
@@ -612,36 +815,52 @@ export function ComparisonResults({ file1, file2, config }: ComparisonResultsPro
                     {t.unusedDescription}
                   </CardDescription>
                 </div>
-                <Button onClick={downloadFile2Only} disabled={comparisonData.file2Only.length === 0}>
+                <Button onClick={downloadFile2Only} disabled={activeFile2Only.length === 0}>
                   <Download className="h-4 w-4 mx-2" />
                   {t.downloadUnused} {file2.name}
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto text-start">
-                {comparisonData.file2Only.map((row, index) => (
-                  <div key={index} className="border rounded-lg p-3">
-                    <p className="font-medium">
-                      {row[config.file2Column] || "N/A"}{" "}
-                      <span className="text-xs text-muted-foreground font-normal">
-                        ({getWordCount(String(row[config.file2Column] || ""))} {t.words})
-                      </span>
-                    </p>
-                    {config.additionalColumns.file2.length > 0 && (
-                      <div className="text-xs text-muted-foreground mt-2 pt-2 border-t space-y-1">
-                        {config.additionalColumns.file2.map((col) => (
-                          <div key={col}>
-                            <span className="font-medium">{col}:</span> {row[col] || "N/A"}
-                          </div>
-                        ))}
-                      </div>
+            <CardContent className="p-0">
+              <div className="px-4 py-2 border-b border-border">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input value={file2Search} onChange={e => setFile2Search(e.target.value)} placeholder="Fuzzy search..." className="pl-9 h-9" />
+                </div>
+              </div>
+              <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 380px)' }}>
+                <table className="w-full text-sm border-collapse">
+                  <thead className="bg-muted sticky top-0 z-10">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-semibold border border-border whitespace-nowrap">#</th>
+                      <th className="text-left px-4 py-3 font-semibold border border-border whitespace-nowrap">{config.file2Column}</th>
+                      <th className="text-left px-4 py-3 font-semibold border border-border whitespace-nowrap">{t.words}</th>
+                      {config.additionalColumns.file2.map((col) => (
+                        <th key={col} className="text-left px-4 py-3 font-semibold border border-border whitespace-nowrap">{col}</th>
+                      ))}
+                      <th className="px-4 py-3 font-semibold border border-border text-center">Del</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredFile2Only.length === 0 ? (
+                      <tr><td colSpan={4 + config.additionalColumns.file2.length} className="text-center py-10 text-muted-foreground border border-border">{t.noUniqueRecords}</td></tr>
+                    ) : (
+                      filteredFile2Only.map((row, index) => (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/30'}>
+                          <td className="px-4 py-2 text-muted-foreground text-xs border border-border">{index + 1}</td>
+                          <td className="px-4 py-2 font-medium border border-border">{row[config.file2Column] || '—'}</td>
+                          <td className="px-4 py-2 text-muted-foreground text-xs border border-border text-center">{getWordCount(String(row[config.file2Column] || ''))}</td>
+                          {config.additionalColumns.file2.map((col) => (
+                            <td key={col} className="px-4 py-2 border border-border">{row[col] || '—'}</td>
+                          ))}
+                          <td className="px-2 py-2 border border-border text-center">
+                            <button onClick={() => deleteFile2Row(row)} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 hover:text-red-700 transition-colors" title="Delete row"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </td>
+                        </tr>
+                      ))
                     )}
-                  </div>
-                ))}
-                {comparisonData.file2Only.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">{t.noUniqueRecords}</p>
-                )}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>

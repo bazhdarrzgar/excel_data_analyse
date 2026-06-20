@@ -25,6 +25,7 @@ export interface ComparisonConfig {
     file1: string[]
     file2: string[]
   }
+  searchEngine?: string
 }
 
 export default function ExcelComparisonApp() {
@@ -47,7 +48,7 @@ export default function ExcelComparisonApp() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/30 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      <div className="w-full px-4 py-6 space-y-6">
         <div className="flex justify-end pt-2">
           <SettingsSwitcher />
         </div>

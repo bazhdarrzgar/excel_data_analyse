@@ -22,6 +22,7 @@ export function ColumnSelector({ file1, file2, onConfigChange, currentConfig }: 
   const [file2AdditionalColumns, setFile2AdditionalColumns] = useState<string[]>([])
   const [file1WordCount, setFile1WordCount] = useState<string>("all")
   const [file2WordCount, setFile2WordCount] = useState<string>("all")
+  const [searchEngine, setSearchEngine] = useState<string>("fuzzy")
 
   useEffect(() => {
     if (currentConfig) {
@@ -31,6 +32,7 @@ export function ColumnSelector({ file1, file2, onConfigChange, currentConfig }: 
       setFile2AdditionalColumns(currentConfig.additionalColumns.file2)
       setFile1WordCount(currentConfig.file1WordCount?.toString() || "all")
       setFile2WordCount(currentConfig.file2WordCount?.toString() || "all")
+      setSearchEngine(currentConfig.searchEngine || "fuzzy")
     }
   }, [currentConfig])
 
@@ -45,6 +47,7 @@ export function ColumnSelector({ file1, file2, onConfigChange, currentConfig }: 
           file1: file1AdditionalColumns,
           file2: file2AdditionalColumns,
         },
+        searchEngine,
       })
     }
   }
@@ -171,6 +174,31 @@ export function ColumnSelector({ file1, file2, onConfigChange, currentConfig }: 
                         {t.compareFirst} {n} {t.words}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-4 md:col-span-2">
+                <Label className="text-base font-sans font-semibold">
+                  Search Engine
+                </Label>
+                <Select value={searchEngine} onValueChange={setSearchEngine}>
+                  <SelectTrigger className="h-12 text-base">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fuzzy">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Fuzzy Search</span>
+                        <span className="text-xs text-muted-foreground text-start">Traditional keyword and fuzzy matching</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="hybrid">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Hybrid Search (RRF)</span>
+                        <span className="text-xs text-muted-foreground text-start">Combines keyword/fuzzy matching with vector search and blends the results using RRF</span>
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
