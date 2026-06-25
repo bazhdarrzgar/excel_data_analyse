@@ -38,18 +38,18 @@ const NUBX_CMD = (() => {
   return 'nubx'; // Fallback to PATH
 })();
 
-async function startDev() {
+async function startProd() {
   const port = await findAvailablePort(3000);
-  console.log(`Starting Next.js on port ${port}...`);
+  console.log(`Starting Next.js in production on port ${port}...`);
   
-  const nextDev = spawn(NUBX_CMD, ['next', 'dev', '-p', port.toString()], {
+  const nextStart = spawn(NUBX_CMD, ['next', 'start', '-p', port.toString()], {
     stdio: 'inherit',
     shell: true
   });
 
-  nextDev.on('close', (code) => {
+  nextStart.on('close', (code) => {
     process.exit(code);
   });
 }
 
-startDev();
+startProd();

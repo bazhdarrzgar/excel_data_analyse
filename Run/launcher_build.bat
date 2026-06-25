@@ -2,8 +2,6 @@
 :: Move to project root
 cd /d "%~dp0.."
 
-echo Starting Project Dashboard...
-
 :: Find nub or node
 set RUN_CMD=
 where nub >nul 2>&1
@@ -26,7 +24,21 @@ if "%RUN_CMD%"=="" (
     exit /b 1
 )
 
-%RUN_CMD% scripts/launcher.mjs
+echo Building the application...
+if "%RUN_CMD%"=="node" (
+    call npm run build
+) else (
+    call %RUN_CMD% run build
+)
+
+if %errorlevel% neq 0 (
+    echo Error building the application.
+    pause
+    exit /b 1
+)
+
+echo Starting Project Dashboard in Build/Production Mode...
+%RUN_CMD% scripts/launcher.mjs --prod
 if %errorlevel% neq 0 (
     echo Error starting launcher.
     pause

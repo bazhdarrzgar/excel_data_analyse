@@ -6,7 +6,7 @@
     "build": "next build",
     "dev": "node scripts/dev.mjs",
     "lint": "next lint",
-    "start": "next start"
+    "start": "node scripts/start.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

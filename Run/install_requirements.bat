@@ -19,12 +19,19 @@ if %errorlevel% equ 0 (
     set NODE_FOUND=0
 )
 
-:: Check for npm
-where npm >nul 2>&1
+:: Check for nub
+where nub >nul 2>&1
 if %errorlevel% equ 0 (
-    set NPM_FOUND=1
+    set NUB_FOUND=1
+    set NUB_CMD=nub
 ) else (
-    set NPM_FOUND=0
+    if exist "%USERPROFILE%\.nub\bin\nub.exe" (
+        set NUB_FOUND=1
+        set NUB_CMD="%USERPROFILE%\.nub\bin\nub.exe"
+    ) else (
+        set NUB_FOUND=0
+        set NUB_CMD=
+    )
 )
 
 :: Check for node_modules
@@ -35,8 +42,8 @@ if exist node_modules (
 )
 
 :: If everything is already there
-if %NODE_FOUND%==1 if %NPM_FOUND%==1 if %MODULES_FOUND%==1 (
-    echo ✨ Requirements is already exist and up to date for running it in windows.
+if %NODE_FOUND%==1 if %NUB_FOUND%==1 if %MODULES_FOUND%==1 (
+    echo ✨ Requirements already exist and are up to date for running in Windows.
     echo.
     echo You can start the project by double-clicking Run\launcher.bat
     echo.
@@ -62,20 +69,43 @@ if %NODE_FOUND%==0 (
     echo ✅ Node.js is already installed: %NODE_VER%
 )
 
-:: npm usually comes with Node, but check just in case
-if %NPM_FOUND%==0 (
-    echo 📦 npm not found. It should have been installed with Node.js.
-    echo Please ensure Node.js is correctly installed.
-    pause
-    exit /b 1
+:: Install nub if missing
+if %NUB_FOUND%==0 (
+    echo 📦 nub not found. 
+    echo Attempting to install nub via PowerShell...
+    powershell -Command "irm https://nubjs.com/install.ps1 | iex"
+    if exist "%USERPROFILE%\.nub\bin\nub.exe" (
+        set NUB_FOUND=1
+        set NUB_CMD="%USERPROFILE%\.nub\bin\nub.exe"
+    ) else (
+        where npm >nul 2>&1
+        if !errorlevel! equ 0 (
+            echo Attempting to install nub via npm...
+            call npm install -g --ignore-scripts=false @nubjs/nub
+            where nub >nul 2>&1
+            if !errorlevel! equ 0 (
+                set NUB_FOUND=1
+                set NUB_CMD=nub
+            )
+        )
+    )
+    if !NUB_FOUND!==0 (
+        echo ❌ nub installation failed.
+        echo Please install nub manually from: https://nubjs.com/
+        pause
+        exit /b 1
+    )
+    echo ✅ nub installed successfully.
+) else (
+    echo ✅ nub is already installed.
 )
 
 :: Install node modules
 if %MODULES_FOUND%==0 (
     echo 📦 Installing node modules... This may take a minute.
-    call npm install
-    if %errorlevel% neq 0 (
-        echo ❌ npm install failed.
+    call !NUB_CMD! install
+    if !errorlevel! neq 0 (
+        echo ❌ nub install failed.
         pause
         exit /b 1
     )

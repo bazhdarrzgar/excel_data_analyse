@@ -4,9 +4,25 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import net from 'net';
+import os from 'os';
+
+const NUB_CMD = (() => {
+  const isWin = process.platform === 'win32';
+  const home = os.homedir();
+  const localNub = isWin 
+    ? path.join(home, '.nub', 'bin', 'nub.exe')
+    : path.join(home, '.nub', 'bin', 'nub');
+  
+  if (fs.existsSync(localNub)) {
+    return localNub;
+  }
+  return 'nub';
+})();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const isProd = process.argv.includes('--prod') || process.env.NODE_ENV === 'production';
 
 let devProcess = null;
 let projectLogs = [];
@@ -192,9 +208,9 @@ const server = http.createServer(async (req, res) => {
     `);
   } else if (req.url === '/start') {
     if (!devProcess) {
-      projectLogs = ["Starting Next.js..."];
+      projectLogs = [isProd ? "Starting Next.js in production..." : "Starting Next.js..."];
       hasOpenedBrowser = false; // Reset for new run
-      devProcess = spawn('npm', ['run', 'dev'], { 
+      devProcess = spawn(NUB_CMD, ['run', isProd ? 'start' : 'dev'], { 
         shell: true,
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: process.platform !== 'win32'
